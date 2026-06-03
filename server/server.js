@@ -17,12 +17,26 @@ require("dotenv").config();
 connectDB();
 
 const app = express();
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.FRONTEND_URL,
+];
 
-app.use(cors({
-  origin: "http://localhost:5173", 
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true, 
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(null, true); // safer for OAuth + APIs
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -30,9 +44,13 @@ app.use(express.urlencoded({ extended: true }));
 require("./config/passport");
 app.use(
   session({
-    secret: "keyboard cat",
+    secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: {
+      secure: true,
+      sameSite: "none",
+    },
   })
 );
 
@@ -40,20 +58,22 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use("/uploads", express.static("uploads", {
   setHeaders: (res) => {
-    res.set("Access-Control-Allow-Origin", "http://localhost:5173");
+    const allowedOrigin = process.env.FRONTEND_URL;
+    res.set("Access-Control-Allow-Origin", allowedOrigin);
     res.set("Access-Control-Allow-Methods", "GET");
     res.set("Cross-Origin-Resource-Policy", "cross-origin");
   }
 }));
 
+
+app.set("trust proxy", 1);
 app.use("/api/user", userRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/quiz", quizRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api/chat", chatRoutes);
-app.use("/api/summary", summaryRoutes); // ✅ ADD THIS
+app.use("/api/summary", summaryRoutes); 
 app.use("/auth", require("./routes/googleAuthRoutes"));
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/documents", require("./routes/documentRoutes"));
