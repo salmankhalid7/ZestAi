@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { 
   LayoutDashboard, FileText, BarChart3, User, LogOut, 
   ChevronLeft, ChevronRight, Menu, X, Bookmark, 
   MessageSquare 
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import api from "../../api/api";
 import ZestLogo from "../../assets/logos/ZestLogo.svg";
 
 const SideBar = ({ isCollapsed, setIsCollapsed }) => {
@@ -13,6 +13,7 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
   const [user, setUser] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,26 +23,30 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
   // Fetch user data
   useEffect(() => {
     const fetchUser = async () => {
-      if (!token) return;
+      if (!token) {
+        setIsLoadingUser(false);
+        return;
+      }
       
       try {
-        const res = await axios.get("http://localhost:5000/api/user/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setUser(res.data);
+        setIsLoadingUser(true);
+        const response = await api.get("/user/me");
+        setUser(response.data);
       } catch (err) {
-        console.error("Failed to load user", err);
+        console.error("Failed to load user");
         // If token is invalid, clear it and redirect to login
         if (err.response?.status === 401) {
-          handleLogout(true); // Silent logout
+          localStorage.removeItem("token");
+          sessionStorage.clear();
+          navigate("/login", { replace: true });
         }
+      } finally {
+        setIsLoadingUser(false);
       }
     };
 
     fetchUser();
-  }, [token]);
+  }, [token, navigate]);
 
   // Close mobile menu when window is resized to desktop
   useEffect(() => {
@@ -55,26 +60,18 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
   }, []);
 
   // Handle logout
-  const handleLogout = async (silent = false) => {
-    if (!silent) {
-      setIsLoggingOut(true);
-    }
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
     
     try {
       // Call logout API if your backend has one
-      if (token && !silent) {
-        await axios.post(
-          "http://localhost:5000/api/auth/logout",
-          {},
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+      if (token) {
+        await api.post("/auth/logout").catch(() => {
+          // Ignore logout API errors - still clear local data
+        });
       }
     } catch (err) {
-      console.error("Logout API error:", err);
+      // Ignore errors - still need to clear local data
     } finally {
       // Clear local storage
       localStorage.removeItem("token");
@@ -84,12 +81,9 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
       sessionStorage.clear();
       
       // Redirect to login page
-      navigate("/login", { replace: true });
-      
-      if (!silent) {
-        setIsLoggingOut(false);
-      }
       setShowLogoutConfirm(false);
+      navigate("/login", { replace: true });
+      setIsLoggingOut(false);
     }
   };
 
@@ -161,7 +155,7 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
                 Cancel
               </button>
               <button
-                onClick={() => handleLogout(false)}
+                onClick={handleLogout}
                 disabled={isLoggingOut}
                 className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -250,9 +244,10 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
               className={`flex items-center gap-2 transition-all duration-200 hover:bg-gray-50 rounded-lg p-2 flex-1
                 ${isCollapsed ? "justify-center w-full" : ""}
               `}
+              disabled={isLoadingUser}
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
-                {getUserFirstChar()}
+                {isLoadingUser ? "..." : getUserFirstChar()}
               </div>
               
               {!isCollapsed && user && (
@@ -263,6 +258,12 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
                   <p className="text-[10px] text-gray-400 truncate">
                     {user.email || "user@example.com"}
                   </p>
+                </div>
+              )}
+
+              {!isCollapsed && isLoadingUser && (
+                <div className="text-left overflow-hidden flex-1">
+                  <p className="text-xs font-bold truncate text-gray-400">Loading...</p>
                 </div>
               )}
             </button>

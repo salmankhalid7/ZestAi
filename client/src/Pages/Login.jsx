@@ -1,9 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
 import google from "../assets/images/google.png";
 import login from "../assets/images/login.svg";
-
 import EmailloginModal from "../components/EmailloginModal";
 import TrialModal from "../components/TrialModal";
 
@@ -12,9 +10,18 @@ const Login = () => {
   const [showSignupModal, setShowSignupModal] = useState(false);
   const navigate = useNavigate();
 
+  // Check if already logged in - redirect to dashboard
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
+
   const handleGoogleLogin = (e) => {
     e.preventDefault();
-    window.location.href = `${import.meta.env?.VITE_API_URL || "http://localhost:5000"}/auth/google`;
+    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
   return (
@@ -161,10 +168,6 @@ const Login = () => {
       <TrialModal
         isOpen={showSignupModal}
         onClose={() => setShowSignupModal(false)}
-        openLogin={() => {
-          setShowSignupModal(false);
-          setShowLoginModal(true);
-        }}
       />
     </>
   );

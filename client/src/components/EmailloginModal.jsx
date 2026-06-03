@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api/api";
 
 function EmailloginModal({ isOpen, onClose, openSignup }) {
   const navigate = useNavigate();
@@ -23,34 +24,21 @@ function EmailloginModal({ isOpen, onClose, openSignup }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const response = await api.post("/auth/login", {
+        email,
+        password,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Invalid credentials. Please try again.");
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
       }
-
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-      }
-
-      console.log("Login Successful:", data);
 
       resetForm();
       onClose();
-
-      // ✅ REDIRECT
       navigate("/dashboard");
 
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Invalid credentials. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +103,8 @@ function EmailloginModal({ isOpen, onClose, openSignup }) {
               placeholder="name@domain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[#f8fafc] border border-gray-200 rounded-xl px-4 py-3 text-sm"
+              disabled={isLoading}
+              className="w-full bg-[#f8fafc] border border-gray-200 rounded-xl px-4 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             />
 
             <input
@@ -124,13 +113,14 @@ function EmailloginModal({ isOpen, onClose, openSignup }) {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-[#f8fafc] border border-gray-200 rounded-xl px-4 py-3 text-sm"
+              disabled={isLoading}
+              className="w-full bg-[#f8fafc] border border-gray-200 rounded-xl px-4 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             />
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-black text-white font-bold text-sm py-3 rounded-xl disabled:opacity-50"
+              className="w-full bg-black text-white font-bold text-sm py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-gray-900"
             >
               {isLoading ? "Signing In..." : "Sign In with Email"}
             </button>
@@ -146,7 +136,8 @@ function EmailloginModal({ isOpen, onClose, openSignup }) {
                 onClose();
                 openSignup();
               }}
-              className="text-black font-semibold hover:underline"
+              disabled={isLoading}
+              className="text-black font-semibold hover:underline disabled:opacity-50"
             >
               Create an account
             </button>
