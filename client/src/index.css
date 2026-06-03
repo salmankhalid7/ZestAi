@@ -5,7 +5,9 @@
   100% { transform: translateX(-50%); }
 }
 
+
 /* Changed from 20s to 35s for a smoother, relaxed speed */
 .animate-marquee {
   animation: marquee 18s linear infinite;
 }
+
