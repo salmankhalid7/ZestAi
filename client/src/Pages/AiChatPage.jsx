@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import { getDocuments } from "../services/Api/documentService";
 import { MessageSquare, Sparkles, FileText } from "lucide-react";
 
 import DocumentCard from "../components/DocumentCard";
@@ -8,36 +8,21 @@ const AiChatPage = () => {
   const [docs, setDocs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // FETCH DOCUMENTS
+useEffect(() => {
   const fetchDocs = async () => {
     try {
       setIsLoading(true);
-
-      const token = localStorage.getItem("token");
-
-      const res = await axios.get(
-        "http://localhost:5000/api/documents",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setDocs(res.data.documents || []);
+      const data = await getDocuments();
+      setDocs(data.documents || []);
     } catch (err) {
-      console.error(
-        "Documents fetch error:",
-        err.response?.data || err.message
-      );
+      console.error("Documents fetch error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchDocs();
-  }, []);
+  fetchDocs();
+}, []);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">

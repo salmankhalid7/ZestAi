@@ -1,53 +1,155 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useEffect, useState, useCallback } from "react";
 import UploadBox from "../components/UploadBox";
 import DocumentCard from "../components/DocumentCard";
-import { getDocuments } from "../services/documentService";
+import ConfirmationModal from "../components/ConfirmationModal";
+import { getDocuments, deleteDocument } from "../services/Api/documentService";
+import { addFavorite, removeFavoriteById, removeFavoriteByDocumentId, getFavorites } from "../services/Api/favoriteService";
 
 const Documents = () => {
   const [docs, setDocs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Modal states
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, docId: null, docTitle: "" });
+  const [favoriteModal, setFavoriteModal] = useState({ isOpen: false, docId: null, docTitle: "", favoriteId: null });
 
-  const fetchDocs = async () => {
+  const fetchDocs = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await getDocuments();
-      // Server now returns isFavorite + favoriteId annotated on each doc
-      setDocs(res.documents || []);
+      // Fetch documents and favorites separately
+      const docsRes = await getDocuments();
+      const favoritesRes = await getFavorites();
+      
+      const documents = docsRes.documents || [];
+      const favorites = favoritesRes.favorites || [];
+      
+      console.log("Fetched favorites:", favorites);
+      
+      // Create a map of documentId to favorite info
+      const favMap = {};
+      favorites.forEach(fav => {
+        // Check if documentId exists and has _id property
+        const docId = fav.documentId?._id || fav.documentId;
+        if (docId) {
+          favMap[docId] = {
+            isFavorite: true,
+            favoriteId: fav._id
+          };
+          console.log(`Mapped document ${docId} to favorite ${fav._id}`);
+        }
+      });
+      
+      // Enrich documents with favorite info
+      const enrichedDocs = documents.map(doc => ({
+        ...doc,
+        isFavorite: !!favMap[doc._id],
+        favoriteId: favMap[doc._id]?.favoriteId || null
+      }));
+      
+      console.log("Enriched documents:", enrichedDocs.map(d => ({ id: d._id, title: d.title, isFavorite: d.isFavorite, favoriteId: d.favoriteId })));
+      
+      setDocs(enrichedDocs);
     } catch (error) {
-      console.error(error.message);
+      console.error("Error fetching docs:", error.message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchDocs();
-  }, []);
+  }, [fetchDocs]);
 
   const handleUpload = (newDoc) => {
-    setDocs((prev) => [newDoc, ...prev]);
+    setDocs((prev) => [{ ...newDoc, isFavorite: false, favoriteId: null }, ...prev]);
   };
 
-  // Called by DocumentCard AFTER the API call succeeds
-  const handleFavoriteChange = (docId, isFavorite, favoriteId) => {
-    setDocs((prev) =>
-      prev.map((doc) =>
-        doc._id === docId ? { ...doc, isFavorite, favoriteId } : doc
-      )
-    );
+  // Handle delete with modal
+  const handleDeleteClick = (docId, docTitle) => {
+    setDeleteModal({ isOpen: true, docId, docTitle });
   };
 
-  // Calls backend, then removes from local state
-  const handleDelete = async (docId) => {
+  const confirmDelete = async () => {
+    const { docId } = deleteModal;
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/api/documents/${docId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await deleteDocument(docId);
       setDocs((prev) => prev.filter((doc) => doc._id !== docId));
+      console.log("Document deleted successfully");
     } catch (err) {
       console.error("Delete failed:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Failed to delete document");
+    } finally {
+      setDeleteModal({ isOpen: false, docId: null, docTitle: "" });
+    }
+  };
+
+  // Handle favorite toggle with modal for removal
+  const handleFavoriteToggle = async (docId, isCurrentlyFavorite, favoriteId, docTitle) => {
+    if (isCurrentlyFavorite) {
+      // Show confirmation modal for removing from favorites
+      setFavoriteModal({
+        isOpen: true,
+        docId,
+        docTitle,
+        favoriteId
+      });
+    } else {
+      // Add to favorites directly without confirmation
+      await addToFavorites(docId);
+    }
+  };
+
+  const addToFavorites = async (docId) => {
+    try {
+      console.log(`Adding favorite for document: ${docId}`);
+      const res = await addFavorite(docId);
+      console.log("Add favorite response:", res);
+      
+      const newFavoriteId = res.favorite?._id || res._id;
+      if (newFavoriteId) {
+        setDocs((prev) =>
+          prev.map((doc) =>
+            doc._id === docId 
+              ? { ...doc, isFavorite: true, favoriteId: newFavoriteId } 
+              : doc
+          )
+        );
+        console.log(`Successfully added favorite with ID: ${newFavoriteId}`);
+      } else {
+        console.error("No favorite ID returned from server");
+        alert("Failed to add favorite: No favorite ID returned");
+      }
+    } catch (err) {
+      console.error("Add favorite error:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Failed to add to favorites");
+    }
+  };
+
+  const confirmRemoveFromFavorites = async () => {
+    const { docId, favoriteId, docTitle } = favoriteModal;
+    try {
+      if (favoriteId) {
+        // Remove using favorite ID
+        console.log(`Removing favorite with ID: ${favoriteId}`);
+        await removeFavoriteById(favoriteId);
+      } else {
+        // Fallback: remove by document ID
+        console.log(`Removing favorite for document: ${docId}`);
+        await removeFavoriteByDocumentId(docId);
+      }
+      
+      // Update local state
+      setDocs((prev) =>
+        prev.map((doc) =>
+          doc._id === docId ? { ...doc, isFavorite: false, favoriteId: null } : doc
+        )
+      );
+      console.log("Successfully removed from favorites");
+    } catch (err) {
+      console.error("Remove favorite error:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Failed to remove from favorites");
+    } finally {
+      setFavoriteModal({ isOpen: false, docId: null, docTitle: "", favoriteId: null });
     }
   };
 
@@ -80,12 +182,36 @@ const Documents = () => {
             <DocumentCard
               key={doc._id}
               doc={doc}
-              onDelete={handleDelete}
-              onFavoriteChange={handleFavoriteChange}
+              onDelete={handleDeleteClick}
+              onFavoriteToggle={handleFavoriteToggle}
             />
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, docId: null, docTitle: "" })}
+        onConfirm={confirmDelete}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${deleteModal.docTitle}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDanger={true}
+      />
+
+      {/* Remove from Favorites Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={favoriteModal.isOpen}
+        onClose={() => setFavoriteModal({ isOpen: false, docId: null, docTitle: "", favoriteId: null })}
+        onConfirm={confirmRemoveFromFavorites}
+        title="Remove from Favorites"
+        message={`Are you sure you want to remove "${favoriteModal.docTitle}" from your favorites?`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        isDanger={false}
+      />
     </div>
   );
 };

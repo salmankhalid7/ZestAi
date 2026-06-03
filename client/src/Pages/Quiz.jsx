@@ -3,12 +3,12 @@
 // ===============================
 
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { 
   CheckCircle, XCircle, AlertCircle, Trophy, 
   TrendingUp, ChevronRight, RefreshCw, 
   Brain, Loader2, Zap
 } from "lucide-react";
+import { generateQuiz, submitQuizAttempt } from "../services/Api/quizService";
 
 const Quiz = ({ documentId }) => {
   const [quiz, setQuiz] = useState(null);
@@ -37,29 +37,14 @@ const Quiz = ({ documentId }) => {
     setSelected("");
 
     try {
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        setError("Please login to take the quiz.");
-        return;
-      }
+      const res = await generateQuiz(documentId);
 
-      const res = await axios.post(
-        `http://localhost:5000/api/quiz/${documentId}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!res.data.quiz || !res.data.quiz.questions || res.data.quiz.questions.length === 0) {
+      if (!res.quiz || !res.quiz.questions || res.quiz.questions.length === 0) {
         setError("No quiz questions generated. Please try again.");
         return;
       }
 
-      setQuiz(res.data.quiz);
+      setQuiz(res.quiz);
     } catch (err) {
       console.error("Quiz generation error:", err);
       
@@ -85,27 +70,15 @@ const Quiz = ({ documentId }) => {
     if (!finished || !quiz) return;
 
     try {
-      const token = localStorage.getItem("token");
-      
-      if (!token) return;
+      const response = await submitQuizAttempt({
+        quizId: quiz._id,
+        documentId,
+        score,
+        total: quiz.questions.length,
+      });
 
-      const response = await axios.post(
-        "http://localhost:5000/api/quiz/attempt",
-        {
-          quizId: quiz._id,
-          documentId,
-          score,
-          total: quiz.questions.length,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.data.attemptId) {
-        setQuizAttemptId(response.data.attemptId);
+      if (response.attemptId) {
+        setQuizAttemptId(response.attemptId);
       }
     } catch (err) {
       console.error("Failed to submit quiz result:", err.message);

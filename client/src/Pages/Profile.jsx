@@ -1,27 +1,19 @@
-import React, { useEffect, useState, useRef } from "react";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import { User, Mail, Save, ArrowLeft, Edit2, Loader2 } from "lucide-react";
 import { 
-  User, Mail, Shield, Camera, Save, ArrowLeft, 
-  CheckCircle, XCircle, Upload, Trash2, Edit2,
-  Globe, Calendar, Loader2
-} from "lucide-react";
+  getCurrentUser, 
+  updateUserProfile
+} from "../services/Api/userService";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
-    name: "",
-    avatar: "",
-    bio: "",
-    location: "",
-    website: ""
+    name: ""
   });
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState("");
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchProfile();
@@ -29,19 +21,11 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/api/user/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUser(res.data);
+      const res = await getCurrentUser();
+      setUser(res);
       setFormData({
-        name: res.data.name || "",
-        avatar: res.data.avatar || "",
-        bio: res.data.bio || "",
-        location: res.data.location || "",
-        website: res.data.website || ""
+        name: res.name || ""
       });
-      setAvatarPreview(res.data.avatar || "");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to load profile");
     } finally {
@@ -54,78 +38,7 @@ const Profile = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const validateUrl = (url) => {
-    if (!url) return true;
-    const pattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-    return pattern.test(url);
-  };
-
-  const handleAvatarUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error("Please upload an image file");
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size should be less than 5MB");
-      return;
-    }
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setAvatarPreview(reader.result);
-    };
-    reader.readAsDataURL(file);
-
-    // Upload to server
-    setUploadingAvatar(true);
-    const uploadFormData = new FormData();
-    uploadFormData.append('avatar', file);
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "http://localhost:5000/api/user/upload-avatar",
-        uploadFormData,
-        {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-      setFormData(prev => ({ ...prev, avatar: res.data.avatar }));
-      toast.success("Avatar updated successfully");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to upload avatar");
-      setAvatarPreview(formData.avatar);
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
-
-  const removeAvatar = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete("http://localhost:5000/api/user/avatar", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setFormData(prev => ({ ...prev, avatar: "" }));
-      setAvatarPreview("");
-      toast.success("Avatar removed");
-    } catch (err) {
-      toast.error("Failed to remove avatar");
-    }
-  };
-
   const updateProfile = async () => {
-    // Validation
     if (!formData.name.trim()) {
       toast.error("Name is required");
       return;
@@ -136,20 +49,10 @@ const Profile = () => {
       return;
     }
 
-    if (formData.website && !validateUrl(formData.website)) {
-      toast.error("Please enter a valid website URL");
-      return;
-    }
-
     setIsSaving(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.put(
-        "http://localhost:5000/api/user/me",
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setUser(res.data);
+      const res = await updateUserProfile(formData);
+      setUser(res);
       setIsEditing(false);
       toast.success("Profile updated successfully");
     } catch (err) {
@@ -159,281 +62,154 @@ const Profile = () => {
     }
   };
 
-  const formatDate = (date) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long',
-      day: 'numeric'
-    });
+  const getFirstLetter = (name) => {
+    if (!name) return "?";
+    return name.charAt(0).toUpperCase();
   };
 
-  const getInitials = (name) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  if (loading) return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="text-center">
-        <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-600">Loading your profile...</p>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Loading profile...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-8 px-3 sm:px-4">
+      <div className="max-w-3xl mx-auto">
         
-        {/* Header with back button */}
-        <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
+        {/* Header */}
+        <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <button 
               onClick={() => window.history.back()}
-              className="mb-4 inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors text-sm mb-2 sm:mb-3"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} />
               <span>Back</span>
             </button>
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              Account Settings
-            </h1>
-            <p className="text-gray-500 mt-2">Manage your profile information and preferences</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Profile</h1>
+            <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Manage your account information</p>
           </div>
           
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+              className="self-start sm:self-center inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all text-sm font-medium"
             >
-              <Edit2 size={18} />
+              <Edit2 size={16} />
               Edit Profile
             </button>
           )}
         </div>
 
-        {/* Main Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Profile Content */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           
-          {/* Profile Card - Left Column */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden sticky top-8">
-              <div className="relative h-32 bg-gradient-to-r from-emerald-500 to-teal-500">
-                <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
-                  <div className="relative group">
-                    <div className="w-32 h-32 rounded-full bg-white p-1">
-                      {avatarPreview ? (
-                        <img
-                          src={avatarPreview}
-                          alt={formData.name}
-                          className="w-full h-full rounded-full object-cover"
-                          onError={() => setAvatarPreview("")}
-                        />
-                      ) : (
-                        <div className="w-full h-full rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-3xl font-bold">
-                          {getInitials(formData.name || "User")}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {isEditing && (
-                      <>
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploadingAvatar}
-                          className="absolute bottom-0 right-0 p-2 bg-emerald-600 rounded-full text-white hover:bg-emerald-700 transition-all shadow-lg disabled:opacity-50"
-                        >
-                          {uploadingAvatar ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-                        </button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarUpload}
-                          className="hidden"
-                        />
-                        {formData.avatar && (
-                          <button
-                            onClick={removeAvatar}
-                            className="absolute bottom-0 left-0 p-2 bg-red-600 rounded-full text-white hover:bg-red-700 transition-all shadow-lg"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="pt-20 pb-6 px-6 text-center">
-                <h2 className="text-xl font-bold text-gray-900">{formData.name || "Not set"}</h2>
-                <p className="text-gray-500 text-sm mt-1 flex items-center justify-center gap-1">
-                  <Mail size={14} />
-                  {user?.email}
-                </p>
-                
-                {formData.bio && (
-                  <p className="text-gray-600 text-sm mt-3 italic">"{formData.bio}"</p>
-                )}
-                
-                <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-                  {formData.location && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-                      <Globe size={14} />
-                      <span>{formData.location}</span>
-                    </div>
-                  )}
-                  {formData.website && (
-                    <div className="flex items-center justify-center gap-2 text-sm">
-                      <a 
-                        href={formData.website.startsWith('http') ? formData.website : `https://${formData.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-emerald-600 hover:text-emerald-700 hover:underline"
-                      >
-                        {formData.website}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Auth Provider</span>
-                  <span className="font-medium text-gray-900 flex items-center gap-1">
-                    <Shield size={14} />
-                    {user?.authProvider || "Email"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Member Since</span>
-                  <span className="font-medium text-gray-900 flex items-center gap-1">
-                    <Calendar size={14} />
-                    {formatDate(user?.createdAt)}
-                  </span>
+          {/* Avatar Section - First Letter Only */}
+          <div className="relative bg-gradient-to-r from-emerald-500 to-teal-500 h-20 sm:h-24">
+            <div className="absolute -bottom-8 sm:-bottom-10 left-1/2 transform -translate-x-1/2">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1 shadow-md">
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold">
+                  {getFirstLetter(formData.name)}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Edit Form - Right Column */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 md:p-8">
-              {isEditing ? (
-                <>
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">Edit Profile Information</h3>
-                  <div className="space-y-5">
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 block mb-2">
-                        Full Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        name="name"
-                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        placeholder="Enter your full name"
-                      />
-                    </div>
+          {/* Profile Info */}
+          <div className="pt-10 sm:pt-12 pb-6 px-4 sm:px-6">
+            {isEditing ? (
+              /* Edit Form */
+              <div className="space-y-4 sm:space-y-5">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1.5">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="name"
+                    type="text"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all text-sm sm:text-base"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Your name"
+                  />
+                </div>
 
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 block mb-2">Bio</label>
-                      <textarea
-                        name="bio"
-                        rows="3"
-                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none resize-none"
-                        value={formData.bio}
-                        onChange={handleInputChange}
-                        placeholder="Tell us a little about yourself..."
-                      />
-                      <p className="text-xs text-gray-400 mt-1">Max 160 characters</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div>
-                        <label className="text-sm font-semibold text-gray-700 block mb-2">Location</label>
-                        <input
-                          name="location"
-                          className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
-                          value={formData.location}
-                          onChange={handleInputChange}
-                          placeholder="City, Country"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-semibold text-gray-700 block mb-2">Website</label>
-                        <input
-                          name="website"
-                          className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
-                          value={formData.website}
-                          onChange={handleInputChange}
-                          placeholder="https://example.com"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-6 flex items-center gap-4">
-                      <button
-                        onClick={updateProfile}
-                        disabled={isSaving}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 size={20} className="animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save size={20} />
-                            Save Changes
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsEditing(false);
-                          setFormData({
-                            name: user?.name || "",
-                            avatar: user?.avatar || "",
-                            bio: user?.bio || "",
-                            location: user?.location || "",
-                            website: user?.website || ""
-                          });
-                          setAvatarPreview(user?.avatar || "");
-                        }}
-                        className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-all"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1.5">Email</label>
+                  <div className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 text-sm sm:text-base">
+                    <Mail size={16} className="flex-shrink-0" />
+                    <span className="break-all">{user?.email}</span>
                   </div>
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle size={40} className="text-emerald-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Profile Information</h3>
-                  <p className="text-gray-500 mb-6">Your profile information is up to date</p>
+                  <p className="text-xs text-gray-400 mt-1.5">Email cannot be changed</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <button
-                    onClick={() => setIsEditing(true)}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-all shadow-sm"
+                    onClick={updateProfile}
+                    disabled={isSaving}
+                    className="order-2 sm:order-1 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
                   >
-                    <Edit2 size={18} />
-                    Edit Profile
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setFormData({
+                        name: user?.name || ""
+                      });
+                    }}
+                    className="order-1 sm:order-2 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all text-sm sm:text-base font-medium"
+                  >
+                    Cancel
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              /* View Mode */
+              <div className="text-center">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 break-words">
+                  {formData.name || "No name set"}
+                </h2>
+                <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mb-3 break-all">
+                  <Mail size={14} className="flex-shrink-0" />
+                  <span>{user?.email}</span>
+                </div>
+
+                {!formData.name && (
+                  <div className="mt-6 py-6 sm:py-8">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <User size={24} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-400 text-sm">No profile information yet</p>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="mt-3 text-emerald-600 hover:text-emerald-700 text-sm font-medium inline-flex items-center gap-1"
+                    >
+                      Add your name
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

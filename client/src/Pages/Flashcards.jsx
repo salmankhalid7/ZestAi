@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import { getFlashcards, generateFlashcards } from "../services/Api/flashcardService";
 
 const Flashcards = ({ documentId }) => {
   const [flashcards, setFlashcards] = useState([]);
@@ -14,15 +14,8 @@ const Flashcards = ({ documentId }) => {
   const fetchFlashcards = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(
-        `http://localhost:5000/api/flashcards/${documentId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      setFlashcards(res.data.flashcards?.cards || []);
+      const res = await getFlashcards(documentId);
+      setFlashcards(res.flashcards?.cards || []);
     } catch (err) {
       console.log(err);
     } finally {
@@ -33,20 +26,12 @@ const Flashcards = ({ documentId }) => {
   // ===============================
   // GENERATE FLASHCARDS
   // ===============================
-  const generateFlashcards = async () => {
+  const generateFlashcardsHandler = async () => {
     try {
       setGenerating(true);
       setError("");
-      const res = await axios.post(
-        `http://localhost:5000/api/flashcards/${documentId}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      setFlashcards(res.data.flashcards.cards || []);
+      const res = await generateFlashcards(documentId);
+      setFlashcards(res.flashcards.cards || []);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to generate flashcards.");
@@ -67,7 +52,7 @@ const Flashcards = ({ documentId }) => {
 
   useEffect(() => {
     fetchFlashcards();
-  }, [documentId]); // Added documentId to dependency array
+  }, [documentId]);
 
   // ===============================
   // LOADING STATE
@@ -93,7 +78,7 @@ const Flashcards = ({ documentId }) => {
             Instantly create smart study flashcards from your document summary.
           </p>
           <button
-            onClick={generateFlashcards}
+            onClick={generateFlashcardsHandler}
             disabled={generating}
             className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-70 text-white px-6 py-3 rounded-2xl font-semibold transition-all shadow-lg w-full md:w-auto"
           >
@@ -116,7 +101,7 @@ const Flashcards = ({ documentId }) => {
           <p className="text-gray-500 mt-2">Master your material with active recall.</p>
         </div>
         <button
-          onClick={generateFlashcards}
+          onClick={generateFlashcardsHandler}
           disabled={generating}
           className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg"
         >

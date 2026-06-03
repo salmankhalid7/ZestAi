@@ -10,6 +10,7 @@ const smartSearchRoutes = require("./routes/smartSearchRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const favoriteRoutes = require("./routes/favoriteRoutes");
 const userRoutes = require("./routes/userRoutes");
+const summaryRoutes = require("./routes/summaryRoutes"); // ✅ ADD THIS
 
 require("dotenv").config();
 
@@ -52,6 +53,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/summary", summaryRoutes); // ✅ ADD THIS
 app.use("/auth", require("./routes/googleAuthRoutes"));
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/documents", require("./routes/documentRoutes"));

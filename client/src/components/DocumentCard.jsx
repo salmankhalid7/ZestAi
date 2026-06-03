@@ -1,6 +1,5 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 
 const formatUploadTime = (dateString) => {
   if (!dateString) return "Uploaded recently";
@@ -22,48 +21,24 @@ const formatFileSize = (bytes) => {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 };
 
-const DocumentCard = ({ doc, onDelete, onFavoriteChange }) => {
+const DocumentCard = ({ doc, onDelete, onFavoriteToggle }) => {
   const navigate = useNavigate();
   if (!doc) return null;
 
-  const handleCardClick = () => navigate(`/document/${doc._id}`);
-
-  const handleFavorite = async (e) => {
-    e.stopPropagation();
-    const token = localStorage.getItem("token");
-
-    try {
-      if (doc.isFavorite && doc.favoriteId) {
-        // REMOVE favorite
-        await axios.delete(
-          `http://localhost:5000/api/favorites/${doc.favoriteId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        onFavoriteChange?.(doc._id, false, null);
-      } else {
-        // ADD favorite
-        const res = await axios.post(
-          "http://localhost:5000/api/favorites",
-          {
-            documentId: doc._id,
-            favoriteType: "document", // ← was "flashcard" before, now correct
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        onFavoriteChange?.(doc._id, true, res.data.favorite._id);
-      }
-    } catch (err) {
-      console.error("Favorite error:", err.response?.data || err.message);
-    }
+  const handleCardClick = (e) => {
+    // Prevent navigation if clicking on buttons
+    if (e.target.closest('button')) return;
+    navigate(`/document/${doc._id}`);
   };
 
-  const handleDelete = async (e) => {
+  const handleFavorite = (e) => {
     e.stopPropagation();
-    try {
-      await onDelete?.(doc._id);
-    } catch (err) {
-      console.error("Delete error:", err.message);
-    }
+    onFavoriteToggle(doc._id, doc.isFavorite, doc.favoriteId, doc.title);
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    onDelete(doc._id, doc.title);
   };
 
   return (
@@ -84,8 +59,10 @@ const DocumentCard = ({ doc, onDelete, onFavoriteChange }) => {
           {/* FAVORITE BUTTON */}
           <button
             onClick={handleFavorite}
-            className={`p-2 rounded-xl transition-all ${
-              doc.isFavorite ? "text-amber-400" : "text-gray-300 hover:text-amber-400"
+            className={`p-2 rounded-xl transition-all cursor-pointer ${
+              doc.isFavorite 
+                ? "text-amber-400 hover:text-amber-500 hover:bg-amber-50" 
+                : "text-gray-300 hover:text-amber-400 hover:bg-gray-50"
             }`}
             title={doc.isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
@@ -103,7 +80,7 @@ const DocumentCard = ({ doc, onDelete, onFavoriteChange }) => {
           {/* DELETE BUTTON */}
           <button
             onClick={handleDelete}
-            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl"
+            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
             title="Delete document"
           >
             <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -116,38 +93,34 @@ const DocumentCard = ({ doc, onDelete, onFavoriteChange }) => {
 
       {/* TITLE */}
       <div className="mb-4">
-        <h3 className="text-[16px] font-bold text-gray-800 line-clamp-1">
+        <h3 className="text-[16px] font-bold text-gray-800 line-clamp-1 group-hover:text-emerald-600 transition-colors">
           {doc.title || "Untitled Document"}
         </h3>
         <p className="text-xs text-gray-400 mt-1">{formatFileSize(doc.fileSize)}</p>
       </div>
 
- {/* DOCUMENT INFO */}
-<div className="flex items-center justify-between mb-5">
-  <div className="flex items-center gap-2 text-sm text-gray-500">
-    <svg
-      className="w-4 h-4 text-emerald-500"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M7 8h10M7 12h6m-6 4h8M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"
-      />
-    </svg>
-
-    <span className="font-medium">
-      Ready for AI Learning
-    </span>
-  </div>
-
-  <div className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-semibold rounded-full">
-    PDF
-  </div>
-</div>
+      {/* DOCUMENT INFO */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <svg
+            className="w-4 h-4 text-emerald-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 8h10M7 12h6m-6 4h8M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"
+            />
+          </svg>
+          <span className="font-medium">Click Here</span>
+        </div>
+        <div className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-semibold rounded-full">
+          PDF
+        </div>
+      </div>
 
       {/* TIME */}
       <div className="text-xs text-gray-400 border-t pt-2">

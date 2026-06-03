@@ -1,6 +1,5 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { pdfjs } from "react-pdf";
 
 // Pages
 import Home from "./Pages/Home";
@@ -30,8 +29,6 @@ import Chat from "./Pages/ChatBox";           // Active chat view
 // Helper
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const App = () => {
   return (

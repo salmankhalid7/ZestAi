@@ -1,9 +1,8 @@
 import React, { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { uploadDocument } from "../services/documentService";
+import { uploadDocument } from "../services/Api/documentService";
 
 const UploadBox = ({ onUpload }) => {
-  const token = localStorage.getItem("token");
   const [isUploading, setIsUploading] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ type: "", text: "" });
 
@@ -15,15 +14,15 @@ const UploadBox = ({ onUpload }) => {
     setStatusMessage({ type: "", text: "" });
 
     try {
-      const res = await uploadDocument(file, token);
+      const res = await uploadDocument(file);
       setStatusMessage({ type: "success", text: "Document uploaded successfully!" });
       onUpload(res.document);
     } catch (error) {
-      setStatusMessage({ type: "error", text: "Upload failed. Please try again." });
+      setStatusMessage({ type: "error", text: error.message || "Upload failed. Please try again." });
     } finally {
       setIsUploading(false);
     }
-  }, [token, onUpload]);
+  }, [onUpload]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

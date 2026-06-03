@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useMemo } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { 
   FileText, BrainCircuit, Star, Activity, 
   TrendingUp, Zap, Target, ArrowRight 
 } from "lucide-react";
+import { fetchDashboardStats } from "../../services/Api/dashboardService";
 
 const Overview = () => {
   const [stats, setStats] = useState(null);
@@ -14,11 +14,9 @@ const Overview = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/dashboard", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        setStats(res.data.stats);
-      } catch {
+        const res = await fetchDashboardStats();
+        setStats(res.stats);
+      } catch (err) {
         setError("Failed to load dashboard data.");
       }
     };
@@ -71,7 +69,7 @@ const Overview = () => {
         <div className="bg-white border rounded-3xl p-6 shadow-sm flex flex-col justify-between">
           <h3 className="font-bold text-lg mb-4">Quick Links</h3>
           <div className="space-y-3">
-            <ActionBtn label="Ai Chat" onClick={() => navigate('/dashboard/ai-chat')} icon={BrainCircuit} />
+            <ActionBtn label="AI Chat" onClick={() => navigate('/dashboard/ai-chat')} icon={BrainCircuit} />
             <ActionBtn label="Saved Insights" onClick={() => navigate('/dashboard/favorites')} icon={Star} />
             <ActionBtn label="Analytics" onClick={() => navigate('/dashboard/analytics')} icon={TrendingUp} />
           </div>
@@ -81,7 +79,7 @@ const Overview = () => {
   );
 };
 
-/* --- ENHANCED SUB-COMPONENTS --- */
+/* --- SUB-COMPONENTS --- */
 
 const StatCard = ({ title, value, color, icon: Icon }) => {
   const colors = {

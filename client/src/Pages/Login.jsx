@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import google from "../assets/images/google.png";
 import login from "../assets/images/login.svg";
@@ -10,6 +10,12 @@ import TrialModal from "../components/TrialModal";
 const Login = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const navigate = useNavigate();
+
+  const handleGoogleLogin = (e) => {
+    e.preventDefault();
+    window.location.href = `${import.meta.env?.VITE_API_URL || "http://localhost:5000"}/auth/google`;
+  };
 
   return (
     <>
@@ -58,8 +64,8 @@ const Login = () => {
                 </p>
 
                 {/* GOOGLE BUTTON */}
-                <a
-                  href={`${import.meta.env?.VITE_API_URL || "http://localhost:5000"}/auth/google`}
+                <button
+                  onClick={handleGoogleLogin}
                   className="w-full flex items-center justify-center gap-3 bg-black text-white py-3.5 rounded-xl font-medium hover:opacity-90 transition shadow-sm text-sm"
                 >
                   <img
@@ -68,7 +74,7 @@ const Login = () => {
                     className="w-7 h-7 object-contain shrink-0"
                   />
                   Continue with Google
-                </a>
+                </button>
 
                 {/* DIVIDER */}
                 <div className="flex items-center my-6">
