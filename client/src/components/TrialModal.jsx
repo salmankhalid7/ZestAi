@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api/api";
+import api from "../services/Api";
 import google from "../assets/images/google.png";
 
 function TrialModal({ isOpen, onClose }) {

@@ -5,7 +5,7 @@ import {
   MessageSquare 
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import api from "../../api/api";
+import api from "../../services/Api/api";
 import ZestLogo from "../../assets/logos/ZestLogo.svg";
 
 const SideBar = ({ isCollapsed, setIsCollapsed }) => {

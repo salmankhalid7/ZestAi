@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api/api";
+import api from "../services/Api";
 
 function EmailloginModal({ isOpen, onClose, openSignup }) {
   const navigate = useNavigate();
